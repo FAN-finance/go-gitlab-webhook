@@ -54,4 +54,6 @@ Temporary Items
 /config.json
 /gitlab-webhook
 .idea/*.xml
+.idea/..
 .idea
+
