@@ -177,7 +177,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("get branch: ", hook.Ref+"/"+hook.Ref)
+	log.Println("get branch: ", hook.Repository.Name+"/"+hook.Ref)
 
 	//find matching config for repository name
 	for _, repo := range config.Repositories {
@@ -189,7 +189,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 			for branchName, cmds := range configBranch {
 				if "refs/heads/"+branchName == hook.Ref {
 
-					var branchId= hook.Ref + "/" + branchName
+					var branchId= repo.Name + "/" + branchName
 					log.Println("process branch: ", branchId)
 					for _, cmd := range cmds {
 
