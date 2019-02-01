@@ -4,16 +4,31 @@
   "port": 3344,
   "repositories": [
     {
-      "name": "foo",
-      "commands": [
-        "/home/bar/deploy.sh",
-        "/home/bar/cleanup.sh"
+      "name": "backend",
+      "config_branchs": [
+        {
+          "master": [
+            "/home/bar/deploy.sh",
+            "/home/bar/cleanup.sh"
+          ]
+        },
+        {
+          "dev": [
+            "/home/bar/deploy_dev.sh",
+            "/home/bar/cleanup_dev.sh"
+          ]
+        }
       ]
     },
     {
-      "name": "foobar",
-      "commands": [
-        "/usr/bin/true"
+      "name": "web",
+      "config_branchs": [
+        {
+          "master": [
+            "/home/bar/deploy1.sh",
+            "/home/bar/cleanup2.sh"
+          ]
+        }
       ]
     }
   ]

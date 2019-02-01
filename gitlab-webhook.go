@@ -12,47 +12,51 @@ import (
 	"strconv"
 	"syscall"
 )
-
-//GitlabRepository represents repository information from the webhook
-type GitlabRepository struct {
-	Name        string
-	URL         string
-	Description string
-	Home        string
-}
-
-//Commit represents commit information from the webhook
-type Commit struct {
-	ID        string
-	Message   string
-	Timestamp string
-	URL       string
-	Author    Author
-}
-
-//Author represents author information from the webhook
-type Author struct {
-	Name  string
-	Email string
-}
-
-//Webhook represents push information from the webhook
 type Webhook struct {
-	Before            string
-	After             string
-	Ref               string
-	Username          string
-	UserID            int
-	ProjectID         int
-	Repository        GitlabRepository
-	Commits           []Commit
-	TotalCommitsCount int
+	After   string `json:"after"`
+	Before  string `json:"before"`
+	Commits []struct {
+		Added  []string `json:"added"`
+		Author struct {
+			Email string `json:"email"`
+			Name  string `json:"name"`
+		} `json:"author"`
+		ID        string        `json:"id"`
+		Message   string        `json:"message"`
+		Modified  []string      `json:"modified"`
+		Removed   []interface{} `json:"removed"`
+		Timestamp string        `json:"timestamp"`
+		URL       string        `json:"url"`
+	} `json:"commits"`
+	ObjectKind string `json:"object_kind"`
+	ProjectID  int    `json:"project_id"`
+	Ref        string `json:"ref"`
+	Repository struct {
+		Description     string `json:"description"`
+		GitHTTPURL      string `json:"git_http_url"`
+		GitSSHURL       string `json:"git_ssh_url"`
+		Homepage        string `json:"homepage"`
+		Name            string `json:"name"`
+		URL             string `json:"url"`
+		VisibilityLevel int    `json:"visibility_level"`
+	} `json:"repository"`
+	TotalCommitsCount int    `json:"total_commits_count"`
+	UserEmail         string `json:"user_email"`
+	UserID            int    `json:"user_id"`
+	UserName          string `json:"user_name"`
 }
+const (
+	OK_PUSH="push"
+	OK_TAGPUSH="tag_push"
+)
+
 
 //ConfigRepository represents a repository from the config file
 type ConfigRepository struct {
 	Name     string
-	Commands []string
+	//Branch string
+	//Commands []string
+	ConfigBranchs []map[string][]string  `json:"config_branchs"`;
 }
 
 //Config represents the config file
@@ -75,7 +79,6 @@ func PanicIf(err error, what ...string) {
 
 var config Config
 var configFile string
-
 func main() {
 	args := os.Args
 
@@ -161,7 +164,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	var hook Webhook
 
 	//read request body
-	var data, err = ioutil.ReadAll(r.Body)
+	var data, err= ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Failed to read request: %s", err)
 		return
@@ -174,22 +177,35 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println("get branch: ", hook.Ref+"/"+hook.Ref)
+
 	//find matching config for repository name
 	for _, repo := range config.Repositories {
 		if repo.Name != hook.Repository.Name {
 			continue
 		}
-
 		//execute commands for repository
-		for _, cmd := range repo.Commands {
-			var command = exec.Command(cmd)
-			out, err := command.Output()
-			if err != nil {
-				log.Printf("Failed to execute command: %s", err)
-				continue
+		for _, configBranch := range repo.ConfigBranchs {
+			for branchName, cmds := range configBranch {
+				if "refs/heads/"+branchName == hook.Ref {
+
+					var branchId= hook.Ref + "/" + branchName
+					log.Println("process branch: ", branchId)
+					for _, cmd := range cmds {
+
+						var exeId = branchId + ":" + cmd
+						log.Println("exeId: ", exeId)
+						var command= exec.Command(cmd)
+						out, err := command.Output()
+						log.Println("Output: " + string(out))
+						if err != nil {
+							log.Printf(exeId+" Failed to execute command: %s", err)
+							break;
+						}
+
+					}
+				}
 			}
-			log.Println("Executed: " + cmd)
-			log.Println("Output: " + string(out))
 		}
 	}
 }
