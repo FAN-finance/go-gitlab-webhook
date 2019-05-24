@@ -8,9 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"os/signal"
 	"strconv"
-	"syscall"
 )
 type Webhook struct {
 	After   string `json:"after"`
@@ -82,18 +80,18 @@ var configFile string
 func main() {
 	args := os.Args
 
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGHUP)
-
-	go func() {
-		<-sigc
-		var err error
-		config, err = loadConfig(configFile)
-		if err != nil {
-			log.Fatalf("Failed to read config: %s", err)
-		}
-		log.Println("config reloaded")
-	}()
+	//sigc := make(chan os.Signal, 1)
+	//signal.Notify(sigc, syscall.SIGHUP)
+	//
+	//go func() {
+	//	<-sigc
+	//	var err error
+	//	config, err = loadConfig(configFile)
+	//	if err != nil {
+	//		log.Fatalf("Failed to read config: %s", err)
+	//	}
+	//	log.Println("config reloaded")
+	//}()
 
 	//if we have a "real" argument we take this as conf path to the config file
 	if len(args) > 1 {
@@ -154,6 +152,7 @@ func loadConfig(configFile string) (Config, error) {
 
 	err = json.Unmarshal(buffer[:count], &config)
 	if err != nil {
+		log.Println("loadConfig err",err)
 		return Config{}, err
 	}
 
@@ -179,6 +178,8 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("get branch: ", hook.Repository.Name+"/"+hook.Ref)
 
+
+	config, _ = loadConfig(configFile)
 	//find matching config for repository name
 	for _, repo := range config.Repositories {
 		if repo.Name != hook.Repository.Name {
