@@ -189,7 +189,6 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		for _, configBranch := range repo.ConfigBranchs {
 			for branchName, cmds := range configBranch {
 				if "refs/heads/"+branchName == hook.Ref {
-
 					var branchId= repo.Name + "/" + branchName
 					log.Println("process branch: ", branchId)
 					for _, cmd := range cmds {
@@ -197,17 +196,51 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 						var exeId = branchId + ":" + cmd
 						log.Println("trigger branch: ", exeId)
 						var command= exec.Command(cmd)
-						out, err := command.Output()
+						out, err1 := command.Output()
+						err=err1
 						log.Println("Output: " + string(out))
 						if err != nil {
 							log.Printf("Failed to execute command: %s", err)
 							break;
-						}else{
-							log.Println("finish : " + exeId)
 						}
+					}
+					if err == nil {
+						log.Println("finish process branch: " + branchId)
+						//SendHookMsg(&hook)
 					}
 				}
 			}
 		}
 	}
 }
+
+//
+//func SendHookMsg(hook *Webhook) {
+//	commits:=""
+//	for idx,commit:=range hook.Commits{
+//		commits+= fmt.Sprintf("%d %s  %s \n",idx,commit.Author.Name, commit.Message)
+//	}
+//	msg:=fmt.Sprintf(`%s/%s 发布完成,主要完成以下修改：\n %s`,hook.Repository.Name,hook.Ref,commits)
+//	log.Println("hook msg:",msg)
+//	// send to chatid
+//	to5 := workwx.Recipient{
+//		ChatID: CHATID,
+//	}
+//	err:= app.SendTextMessage(&to5, msg, false)
+//	log.Println(err)
+//	return
+//}
+//var app *workwx.WorkwxApp
+//const CHATID="report"
+//func init(){
+//	corpID := "ww23e68632206c98e7"
+//	corpSecret := "G2gcJ8ui5xjCD0QTiKPhiW3jXXNxNWxfh29VWC1NSJY"
+//	agentID := int64(1000002)
+//
+//	client := workwx.New(corpID)
+//
+//	app = client.WithApp(corpSecret, agentID)
+//	// preferably do this at app initialization
+//	app.SpawnAccessTokenRefresher()
+//
+//}
