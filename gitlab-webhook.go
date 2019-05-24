@@ -195,15 +195,16 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 					for _, cmd := range cmds {
 
 						var exeId = branchId + ":" + cmd
-						log.Println("exeId: ", exeId)
+						log.Println("trigger branch: ", exeId)
 						var command= exec.Command(cmd)
 						out, err := command.Output()
 						log.Println("Output: " + string(out))
 						if err != nil {
-							log.Printf(exeId+" Failed to execute command: %s", err)
+							log.Printf("Failed to execute command: %s", err)
 							break;
+						}else{
+							log.Println("finish : " + exeId)
 						}
-
 					}
 				}
 			}
