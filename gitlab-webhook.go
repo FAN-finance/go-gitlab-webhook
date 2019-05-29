@@ -3,12 +3,16 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/xen0n/go-workwx"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
+	"time"
 )
 type Webhook struct {
 	After   string `json:"after"`
@@ -189,6 +193,8 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		for _, configBranch := range repo.ConfigBranchs {
 			for branchName, cmds := range configBranch {
 				if "refs/heads/"+branchName == hook.Ref {
+					SendHookMsg(&hook)
+
 					var branchId= repo.Name + "/" + branchName
 					log.Println("process branch: ", branchId)
 					for _, cmd := range cmds {
@@ -201,12 +207,15 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 						log.Println("Output: " + string(out))
 						if err != nil {
 							log.Printf("Failed to execute command: %s", err)
+							SendMsg(fmt.Sprintf("%s 出错: \n%s",exeId, string(out)))
 							break;
+						}else{
+							SendMsg(fmt.Sprintf("%s 完成: \n%s",exeId, string(out)))
 						}
 					}
 					if err == nil {
 						log.Println("finish process branch: " + branchId)
-						//SendHookMsg(&hook)
+
 					}
 				}
 			}
@@ -214,33 +223,39 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//
-//func SendHookMsg(hook *Webhook) {
-//	commits:=""
-//	for idx,commit:=range hook.Commits{
-//		commits+= fmt.Sprintf("%d %s  %s \n",idx,commit.Author.Name, commit.Message)
-//	}
-//	msg:=fmt.Sprintf(`%s/%s 发布完成,主要完成以下修改：\n %s`,hook.Repository.Name,hook.Ref,commits)
-//	log.Println("hook msg:",msg)
-//	// send to chatid
-//	to5 := workwx.Recipient{
-//		ChatID: CHATID,
-//	}
-//	err:= app.SendTextMessage(&to5, msg, false)
-//	log.Println(err)
-//	return
-//}
-//var app *workwx.WorkwxApp
-//const CHATID="report"
-//func init(){
-//	corpID := "ww23e68632206c98e7"
-//	corpSecret := "G2gcJ8ui5xjCD0QTiKPhiW3jXXNxNWxfh29VWC1NSJY"
-//	agentID := int64(1000002)
-//
-//	client := workwx.New(corpID)
-//
-//	app = client.WithApp(corpSecret, agentID)
-//	// preferably do this at app initialization
-//	app.SpawnAccessTokenRefresher()
-//
-//}
+
+func SendHookMsg(hook *Webhook) {
+	commits:=""
+	for idx,commit:=range hook.Commits{
+		ctime,_:=time.Parse("2006-01-02T15:04:05Z",commit.Timestamp)
+		ctime=ctime.Local()
+		ctimeStr:=ctime.Format("01-02 15:04")
+		commits+= fmt.Sprintf("%d) %s %s %s \n",idx,commit.Author.Name,ctimeStr, commit.Message)
+	}
+	branchName:=strings.TrimPrefix(hook.Ref,"refs/heads/")
+	msg:=fmt.Sprintf("%s/%s git 推送完成,主要完成以下修改：\n%s",hook.Repository.Name,branchName,commits)
+	SendMsg(msg)
+	return
+}
+
+func SendMsg(msg string) {
+
+	log.Println("send msg:",msg)
+	to5 := workwx.Recipient{
+		UserIDs: []string{"@all"},
+	}
+	err:= app.SendTextMessage(&to5, msg, false)
+	log.Println(err)
+	return
+}
+
+var corpID = "ww23e68632206c98e7"
+var corpSecret = "G2gcJ8ui5xjCD0QTiKPhiW3jXXNxNWxfh29VWC1NSJY"
+var agentID = int64(1000002)
+var app *workwx.WorkwxApp
+func init(){
+	client := workwx.New(corpID)
+	app = client.WithApp(corpSecret, agentID)
+	// preferably do this at app initialization
+	app.SpawnAccessTokenRefresher()
+}
