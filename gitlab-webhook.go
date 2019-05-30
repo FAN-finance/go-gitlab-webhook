@@ -80,9 +80,8 @@ func PanicIf(err error, what ...string) {
 }
 
 var config Config
-var configFile string
+var configFile ="config.json"
 func main() {
-	args := os.Args
 
 	//sigc := make(chan os.Signal, 1)
 	//signal.Notify(sigc, syscall.SIGHUP)
@@ -98,6 +97,8 @@ func main() {
 	//}()
 
 	//if we have a "real" argument we take this as conf path to the config file
+
+	args := os.Args
 	if len(args) > 1 {
 		configFile = args[1]
 	} else {
@@ -159,7 +160,6 @@ func loadConfig(configFile string) (Config, error) {
 		log.Println("loadConfig err",err)
 		return Config{}, err
 	}
-
 	return config, nil
 }
 
@@ -170,6 +170,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	var data, err= ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Failed to read request: %s", err)
+		w.WriteHeader(500)
 		return
 	}
 
@@ -177,11 +178,11 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(data, &hook)
 	if err != nil {
 		log.Printf("Failed to parse request: %s", err)
+		w.WriteHeader(500)
 		return
 	}
-
 	log.Println("get branch: ", hook.Repository.Name+"/"+hook.Ref)
-
+	SendHookMsg(&hook) //send msg for every Repository and branch
 
 	config, _ = loadConfig(configFile)
 	//find matching config for repository name
@@ -193,7 +194,7 @@ func hookHandler(w http.ResponseWriter, r *http.Request) {
 		for _, configBranch := range repo.ConfigBranchs {
 			for branchName, cmds := range configBranch {
 				if "refs/heads/"+branchName == hook.Ref {
-					SendHookMsg(&hook)
+					//SendHookMsg(&hook) //only send message for  matched brandh
 
 					var branchId= repo.Name + "/" + branchName
 					log.Println("process branch: ", branchId)
@@ -230,7 +231,7 @@ func SendHookMsg(hook *Webhook) {
 		ctime,_:=time.Parse("2006-01-02T15:04:05Z",commit.Timestamp)
 		ctime=ctime.Local()
 		ctimeStr:=ctime.Format("01-02 15:04")
-		commits+= fmt.Sprintf("%d) %s %s %s \n",idx,commit.Author.Name,ctimeStr, commit.Message)
+		commits+= fmt.Sprintf("%d) %s %s %s \n",idx,ctimeStr,commit.Author.Name, commit.Message)
 	}
 	branchName:=strings.TrimPrefix(hook.Ref,"refs/heads/")
 	msg:=fmt.Sprintf("%s/%s git 推送完成,主要完成以下修改：\n%s",hook.Repository.Name,branchName,commits)
@@ -240,10 +241,12 @@ func SendHookMsg(hook *Webhook) {
 
 func SendMsg(msg string) {
 
-	log.Println("send msg:",msg)
+	log.Println("send msg:\n",msg)
 	to5 := workwx.Recipient{
 		UserIDs: []string{"@all"},
 	}
+
+	msg=msg+"\n date:"+time.Now().Format("2006-01-02 15:04:05")
 	err:= app.SendTextMessage(&to5, msg, false)
 	log.Println(err)
 	return

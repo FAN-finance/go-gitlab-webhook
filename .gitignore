@@ -57,3 +57,4 @@ Temporary Items
 .idea/..
 .idea
 tmp.*
+config.json
